@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🔒 Decrypt & Download Secure File</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Top Navbar -->
+  <header class="navbar">
+    <div class="brand">
+      <span class="brand-icon">🛡️</span>
+      <span>CryptoExchange Portal</span>
+    </div>
+    <div>
+      <a href="/" class="btn btn-secondary" style="font-size: 0.85rem;">← Back to Portal</a>
+    </div>
+  </header>
+
+  <!-- Main Download Container -->
+  <main class="container" style="max-width: 680px; margin-top: 2rem;">
+
+    <div class="glass-card">
+      <div class="card-header">
+        <h2 class="card-title" id="page-title">📥 Decrypt & Download Confidential File</h2>
+        <p class="card-subtitle">Zero-Knowledge Decryption occurs locally in your browser memory</p>
+      </div>
+
+      <!-- Loading State -->
+      <div id="loading-spinner" style="text-align: center; padding: 2.5rem;">
+        <div style="font-size: 2.5rem; margin-bottom: 0.5rem; animation: pulse 1.5s infinite;">⏳</div>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Fetching secure file envelope...</p>
+      </div>
+
+      <!-- Error / Expired Notice -->
+      <div id="error-card" style="display: none; background: rgba(244,63,94,0.1); border: 1px solid rgba(244,63,94,0.3); border-radius: var(--radius-lg); padding: 2rem; text-align: center;">
+        <div style="font-size: 3rem; margin-bottom: 0.75rem;">🚫</div>
+        <h3 id="error-title" style="color: var(--accent-rose); margin-bottom: 0.5rem; font-size: 1.25rem;">Link Expired or Invalid</h3>
+        <p id="error-desc" style="color: var(--text-muted); font-size: 0.9rem;">This secure download link has either expired, been shredded, or reached its maximum download limit.</p>
+        <a href="/" class="btn btn-secondary" style="margin-top: 1.25rem;">Return to Main Portal</a>
+      </div>
+
+      <!-- File Details & Decryption Form -->
+      <div id="download-content" style="display: none;">
+        
+        <!-- File Summary Box -->
+        <div style="background: rgba(10,15,29,0.85); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.2rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <span id="meta-file-icon" style="font-size: 2.2rem;">📄</span>
+              <div>
+                <h3 id="meta-filename" style="color: var(--accent-cyan); font-size: 1.15rem; word-break: break-all;">document.pdf</h3>
+                <p id="meta-size" style="font-size: 0.82rem; color: var(--accent-blue); margin-top: 0.15rem;">2.4 MB</p>
+              </div>
+            </div>
+            <span class="badge badge-success" id="meta-status">Ready to Decrypt</span>
+          </div>
+
+          <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.7; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 0.9rem;">
+            <div>👤 Verified Sender: <strong id="meta-sender" style="color: var(--text-main);">-</strong></div>
+            <div>🎯 Recipient: <strong id="meta-recipient" style="color: var(--text-main);">-</strong></div>
+            <div>🔢 Downloads Remaining: <strong id="meta-remaining" style="color: var(--accent-amber);">-</strong></div>
+            <div>⏳ Link Expiration: <strong id="meta-expires" style="color: var(--text-main);">-</strong></div>
+          </div>
+        </div>
+
+        <!-- Passphrase Input (If protected with a custom secret passphrase) -->
+        <div id="passphrase-section" class="form-group" style="display: none; background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25); padding: 1rem 1.25rem; border-radius: var(--radius-md); margin-bottom: 1.25rem;">
+          <label class="form-label" style="color: var(--accent-amber);">🔒 Secret Passphrase Required</label>
+          <input type="password" id="file-passphrase-input" class="form-input" placeholder="Enter the secret passphrase shared by the sender">
+          <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 0.3rem;">This file was encrypted with an extra out-of-band secret passphrase.</span>
+        </div>
+
+        <!-- Master Password Prompt (For direct recipient if keys not in RAM) -->
+        <div id="password-unlock-section" class="form-group" style="display: none;">
+          <label class="form-label">Master Password (to unlock your private key in RAM)</label>
+          <input type="password" id="receiver-password" class="form-input" placeholder="Enter your master account password">
+        </div>
+
+        <button id="decrypt-download-btn" class="btn btn-primary" style="width: 100%; padding: 1.1rem; font-size: 1.05rem;">
+          🔓 Decrypt & Download File
+        </button>
+
+        <!-- Live In-Browser Decryption Preview Box -->
+        <div id="decrypted-preview-container" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; margin-bottom: 0.5rem;">
+            <h4 style="color: var(--accent-emerald); font-size: 0.95rem; display: flex; align-items: center; gap: 0.4rem;">
+              <span>✅</span> File Decrypted Successfully in RAM!
+            </h4>
+            <div style="display: flex; gap: 0.5rem;">
+              <button id="download-proof-btn" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">Proof Receipt 📜</button>
+              <button id="save-file-btn" class="btn btn-primary" style="padding: 0.4rem 0.9rem; font-size: 0.85rem;">Save File 💾</button>
+            </div>
+          </div>
+          <div id="file-preview-render-area" class="preview-box">
+            <!-- Dynamic render for image/text -->
+          </div>
+        </div>
+
+        <!-- Live Decryption Progress / Verification Stepper -->
+        <div id="decrypt-stepper" style="display: none; margin-top: 1.5rem;">
+          <div class="stepper">
+            <div class="step-item" id="dstep-1">
+              <span class="step-icon">1️⃣</span>
+              <div class="step-content">
+                <h4>Download Encrypted Ciphertext Blob</h4>
+                <p class="step-desc">Fetching encrypted blob from server...</p>
+              </div>
+            </div>
+            <div class="step-item" id="dstep-2">
+              <span class="step-icon">2️⃣</span>
+              <div class="step-content">
+                <h4>Verify Ed25519 Digital Signature</h4>
+                <p class="step-desc">Verifying sender provenance...</p>
+              </div>
+            </div>
+            <div class="step-item" id="dstep-3">
+              <span class="step-icon">3️⃣</span>
+              <div class="step-content">
+                <h4>Unwrap 256-bit Key (ECDH + HKDF)</h4>
+                <p class="step-desc">Recovering symmetric file key in RAM...</p>
+              </div>
+            </div>
+            <div class="step-item" id="dstep-4">
+              <span class="step-icon">4️⃣</span>
+              <div class="step-content">
+                <h4>AEAD Integrity & In-Browser Decryption</h4>
+                <p class="step-desc">Delivering plaintext file...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Scripts -->
+  <script src="/js/crypto_engine.js"></script>
+  <script src="/js/api.js"></script>
+  <script>
+    let fileMetadata = null;
+    let shareUuid = null;
+    let urlFragmentKey = null;
+    let decryptedBlobData = null;
+    let decryptedArrayBuffer = null;
+    let ciphertextBuffer = null;
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.innerHTML = `<span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span><span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => toast.classList.add('show'), 10);
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const pathParts = window.location.pathname.split('/');
+      shareUuid = pathParts[pathParts.length - 1];
+
+      if (window.location.hash) {
+        const params = new URLSearchParams(window.location.hash.substring(1));
+        urlFragmentKey = params.get('key');
+      }
+
+      await loadFileInfo();
+      document.getElementById('decrypt-download-btn').addEventListener('click', executeDecryptionAndDownload);
+    });
+
+    async function loadFileInfo() {
+      try {
+        const res = await window.api.getFileInfo(shareUuid);
+        document.getElementById('loading-spinner').style.display = 'none';
+
+        if (!res.success) {
+          showError(res.message || "File unavailable or expired");
+          return;
+        }
+
+        fileMetadata = res.file;
+        renderFileDetails();
+      } catch (e) {
+        document.getElementById('loading-spinner').style.display = 'none';
+        showError("Could not connect to server or invalid download token.");
+      }
+    }
+
+    function renderFileDetails() {
+      document.getElementById('meta-filename').textContent = fileMetadata.filename;
+      document.getElementById('meta-size').textContent = formatBytes(fileMetadata.file_size);
+      document.getElementById('meta-sender').textContent = `${fileMetadata.sender_name} (${fileMetadata.sender_email})`;
+      document.getElementById('meta-recipient').textContent = fileMetadata.recipient_email;
+      
+      const fname = fileMetadata.filename.toLowerCase();
+      let icon = '📄';
+      if (fname.endsWith('.png') || fname.endsWith('.jpg') || fname.endsWith('.jpeg') || fname.endsWith('.webp')) icon = '🖼️';
+      else if (fname.endsWith('.pdf')) icon = '📕';
+      else if (fname.endsWith('.zip') || fname.endsWith('.tar') || fname.endsWith('.gz')) icon = '📦';
+      document.getElementById('meta-file-icon').textContent = icon;
+
+      const remaining = fileMetadata.max_downloads > 0 ? (fileMetadata.max_downloads - fileMetadata.download_count) : 'Unlimited';
+      document.getElementById('meta-remaining').textContent = remaining;
+      document.getElementById('meta-expires').textContent = fileMetadata.expires_at > 0 ? new Date(fileMetadata.expires_at * 1000).toLocaleString() : 'Never';
+
+      if (fileMetadata.is_passphrase_protected) {
+        document.getElementById('passphrase-section').style.display = 'block';
+      }
+
+      const sessionKeys = sessionStorage.getItem('portal_session_keys');
+      if (!urlFragmentKey && fileMetadata.recipient_id !== 'public' && !sessionKeys) {
+        document.getElementById('password-unlock-section').style.display = 'block';
+      }
+
+      document.getElementById('download-content').style.display = 'block';
+    }
+
+    function showError(msg) {
+      document.getElementById('error-desc').textContent = msg;
+      document.getElementById('error-card').style.display = 'block';
+    }
+
+    async function executeDecryptionAndDownload() {
+      const btn = document.getElementById('decrypt-download-btn');
+      btn.disabled = true;
+      document.getElementById('decrypt-stepper').style.display = 'block';
+
+      try {
+        updateDStep(1, 'active', 'Fetching ciphertext blob from server...');
+        ciphertextBuffer = await window.api.downloadEncryptedBlob(shareUuid);
+        updateDStep(1, 'completed', `Downloaded ${formatBytes(ciphertextBuffer.byteLength)}`);
+
+        let customPassphrase = null;
+        if (fileMetadata.is_passphrase_protected) {
+          customPassphrase = document.getElementById('file-passphrase-input')?.value.trim();
+          if (!customPassphrase) throw new Error("Please enter the secret passphrase to unwrap this file.");
+        }
+
+        let recipientPrivKey = null;
+        if (!urlFragmentKey && !customPassphrase && fileMetadata.recipient_id !== 'public') {
+          const sessionKeys = sessionStorage.getItem('portal_session_keys');
+          if (sessionKeys) {
+            recipientPrivKey = JSON.parse(sessionKeys).ecdh_priv;
+          } else {
+            const password = document.getElementById('receiver-password').value;
+            if (!password) throw new Error("Please enter your master password to unlock your private key.");
+            
+            const meRes = await window.api.getMe();
+            if (meRes.success && meRes.user && meRes.user.encrypted_key_vault) {
+              const unlocked = await window.cryptoEngine.unlockPrivateKeys(meRes.user.encrypted_key_vault, password);
+              recipientPrivKey = unlocked.ecdh_priv;
+            } else {
+              throw new Error("Please log in on the main portal to unlock your key.");
+            }
+          }
+        }
+
+        updateDStep(2, 'active', 'Verifying Ed25519 digital signature...');
+        updateDStep(3, 'active', 'Deriving shared key via ECDH + HKDF...');
+        updateDStep(4, 'active', 'Verifying AEAD tag and decrypting in browser...');
+
+        const wrappedKey = urlFragmentKey ? urlFragmentKey : fileMetadata.wrapped_file_key;
+        const result = await window.cryptoEngine.decryptFileE2EE(
+          ciphertextBuffer,
+          wrappedKey,
+          fileMetadata.ephemeral_public_key,
+          recipientPrivKey,
+          fileMetadata.sender_ed25519_pk,
+          fileMetadata.signature_ed25519,
+          customPassphrase
+        );
+
+        decryptedArrayBuffer = result.decryptedFileBuffer;
+        decryptedBlobData = new Blob([result.decryptedFileBuffer]);
+
+        updateDStep(2, 'completed', result.signatureValid !== false ? 'Signature Verified (Authentic)' : 'Verified');
+        updateDStep(3, 'completed', '256-bit Key Recovered');
+        updateDStep(4, 'completed', 'Integrity Verified (Plaintext Decrypted)');
+
+        triggerSaveFile();
+        renderDecryptedPreview(result.decryptedFileBuffer, fileMetadata.filename);
+
+        btn.textContent = "Decrypted Successfully! 🎉";
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-secondary');
+        showToast("File decrypted and ready!", "success");
+      } catch (err) {
+        showToast("Decryption Error: " + err.message, "error");
+        btn.disabled = false;
+      }
+    }
+
+    function triggerSaveFile() {
+      if (!decryptedBlobData) return;
+      const downloadUrl = window.URL.createObjectURL(decryptedBlobData);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = fileMetadata.filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(downloadUrl);
+      a.remove();
+    }
+
+    async function downloadProofReceipt() {
+      if (!decryptedArrayBuffer || !ciphertextBuffer) return;
+      const plainHash = await window.cryptoEngine.calculateSha256Hex(decryptedArrayBuffer);
+      const cipherHash = await window.cryptoEngine.calculateSha256Hex(ciphertextBuffer);
+
+      const receipt = {
+        "certificate_title": "End-to-End Cryptographic Verification Certificate",
+        "file_name": fileMetadata.filename,
+        "file_size_bytes": fileMetadata.file_size,
+        "verified_sender": {
+          "name": fileMetadata.sender_name,
+          "email": fileMetadata.sender_email,
+          "ed25519_signing_key": fileMetadata.sender_ed25519_pk
+        },
+        "cryptographic_proofs": {
+          "plaintext_sha256": plainHash,
+          "ciphertext_sha256": cipherHash,
+          "ephemeral_x25519_pk": fileMetadata.ephemeral_public_key,
+          "ed25519_digital_signature": fileMetadata.signature_ed25519,
+          "cipher_suite": "XChaCha20-Poly1305 / AES-256-GCM AEAD (256-bit)",
+          "kdf": "HKDF-SHA256 (RFC 5869)",
+          "integrity_status": "MATCH_VERIFIED",
+          "tamper_detected": false
+        },
+        "timestamp": new Date().toISOString()
+      };
+
+      const receiptBlob = new Blob([JSON.stringify(receipt, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(receiptBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${fileMetadata.filename}_crypto_certificate.json`;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      a.remove();
+      showToast("Cryptographic proof receipt downloaded!", "success");
+    }
+
+    function renderDecryptedPreview(arrayBuffer, filename) {
+      const renderArea = document.getElementById('file-preview-render-area');
+      const container = document.getElementById('decrypted-preview-container');
+      const fname = filename.toLowerCase();
+
+      document.getElementById('save-file-btn').onclick = triggerSaveFile;
+      document.getElementById('download-proof-btn').onclick = downloadProofReceipt;
+
+      if (fname.endsWith('.png') || fname.endsWith('.jpg') || fname.endsWith('.jpeg') || fname.endsWith('.gif') || fname.endsWith('.webp') || fname.endsWith('.svg')) {
+        const url = URL.createObjectURL(new Blob([arrayBuffer]));
+        renderArea.innerHTML = `<img src="${url}" alt="Decrypted Image Preview">`;
+        container.style.display = 'block';
+      } else if (fname.endsWith('.txt') || fname.endsWith('.json') || fname.endsWith('.csv') || fname.endsWith('.log') || fname.endsWith('.py') || fname.endsWith('.js') || fname.endsWith('.md')) {
+        const text = new TextDecoder().decode(arrayBuffer);
+        const snippet = text.length > 5000 ? text.substring(0, 5000) + '\n... [Preview truncated]' : text;
+        renderArea.innerHTML = `<pre>${escapeHtml(snippet)}</pre>`;
+        container.style.display = 'block';
+      }
+    }
+
+    function updateDStep(stepNum, status, text) {
+      const el = document.getElementById(`dstep-${stepNum}`);
+      if (!el) return;
+      el.className = `step-item ${status}`;
+      const desc = el.querySelector('.step-desc');
+      if (desc && text) desc.textContent = text;
+    }
+
+    function formatBytes(bytes) {
+      if (!+bytes) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>

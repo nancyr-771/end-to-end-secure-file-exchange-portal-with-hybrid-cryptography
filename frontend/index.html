@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SecureFileExchange | Modern E2EE File Portal</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="brand">
+      <span class="brand-icon">🛡️</span>
+      <span style="font-weight: 700; letter-spacing: -0.5px;">SecureFileExchange</span>
+    </div>
+
+    <!-- 7 Main Nav Links -->
+    <nav class="nav-links" id="nav-main-links" style="display: none;">
+      <button class="nav-btn active" data-tab="dashboard">Dashboard</button>
+      <button class="nav-btn" data-tab="upload">Upload</button>
+      <button class="nav-btn" data-tab="my-files">My Files</button>
+      <button class="nav-btn" data-tab="shared-files">Shared</button>
+      <button class="nav-btn" data-tab="received-files">Received <span id="nav-received-count" class="badge badge-info" style="font-size: 0.7rem; padding: 0.15rem 0.45rem;">0</span></button>
+      <button class="nav-btn" data-tab="activity">Activity</button>
+      <button class="nav-btn" data-tab="security">Security</button>
+      <button class="nav-btn" data-tab="settings">Settings</button>
+    </nav>
+
+    <!-- User Profile & Session -->
+    <div style="display: flex; align-items: center; gap: 1rem;">
+      <div id="user-profile-badge" class="user-badge" style="display: none;">
+        <span id="key-status-indicator" class="badge badge-success">E2EE Active</span>
+        <div style="display: flex; flex-direction: column; text-align: left; margin-left: 0.25rem;">
+          <strong id="user-display-name" style="font-size: 0.85rem; color: var(--text-main);">User</strong>
+          <span id="user-display-email" style="font-size: 0.7rem; color: var(--text-muted);">user@company.com</span>
+        </div>
+        <button id="logout-btn" class="btn btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.75rem; margin-left: 0.5rem;">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Application Container -->
+  <main class="container">
+
+    <!-- ================= 1. AUTH VIEW (LOGIN / REGISTER) ================= -->
+    <section id="auth-overlay-view" style="display: block;">
+      <div class="hero-banner" style="margin-bottom: 2rem; padding: 1.5rem 0;">
+        <h1 class="hero-title" style="font-size: 2.2rem; margin-bottom: 0.5rem;">End-to-End Secure File Exchange</h1>
+      </div>
+
+      <div style="max-width: 440px; margin: 0 auto;">
+
+        <!-- Login Card -->
+        <div id="login-card" class="glass-card">
+          <div class="card-header">
+            <h2 class="card-title">🔐 Secure Login</h2>
+            <p class="card-subtitle">Master password unlocks your private keys into memory</p>
+          </div>
+          <form id="form-login">
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <input type="email" id="login-email" class="form-input" placeholder="user@company.com" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Master Password</label>
+              <input type="password" id="login-password" class="form-input" placeholder="••••••••••••" required>
+            </div>
+            <button type="submit" id="login-submit-btn" class="btn btn-primary" style="width: 100%;">Login to Portal</button>
+            <p style="text-align: center; margin-top: 1.25rem; font-size: 0.85rem; color: var(--text-muted);">
+              Don't have an account? <a href="#" id="show-reg-btn" style="color: var(--accent-cyan); text-decoration: none; font-weight: 600;">Create Account</a>
+            </p>
+          </form>
+        </div>
+
+        <!-- Register Card -->
+        <div id="register-card" class="glass-card" style="display: none;">
+          <div class="card-header">
+            <h2 class="card-title">🔑 Create Account</h2>
+            <p class="card-subtitle">Generates dual 256-bit X25519 & Ed25519 identity keypairs</p>
+          </div>
+          <form id="form-register">
+            <div class="form-group">
+              <label class="form-label">Full Name</label>
+              <input type="text" id="reg-name" class="form-input" placeholder="Enter your full name" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <input type="email" id="reg-email" class="form-input" placeholder="user@company.com" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Master Password</label>
+              <input type="password" id="reg-password" class="form-input" placeholder="••••••••••••" required minlength="6">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirm Password</label>
+              <input type="password" id="reg-confirm-password" class="form-input" placeholder="••••••••••••" required minlength="6">
+            </div>
+            <button type="submit" id="reg-submit-btn" class="btn btn-primary" style="width: 100%;">Create Account & Generate Keys</button>
+            <p style="text-align: center; margin-top: 1.25rem; font-size: 0.85rem; color: var(--text-muted);">
+              Already have an account? <a href="#" id="show-login-btn" style="color: var(--accent-cyan); text-decoration: none; font-weight: 600;">Sign in here</a>
+            </p>
+          </form>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ================= AUTHENTICATED 7 PAGES ================= -->
+    <section id="main-app-view" style="display: none;">
+
+      <!-- PAGE 1: DASHBOARD -->
+      <div id="view-dashboard" class="view-section">
+        <div style="margin-bottom: 1.5rem;">
+          <h2 style="font-size: 1.6rem; font-weight: 700; color: var(--text-main);" id="dashboard-greeting">Good evening</h2>
+          <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.25rem;">Your files are protected with end-to-end modern hybrid encryption.</p>
+        </div>
+
+        <!-- 4 Statistics Widgets -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; margin-bottom: 2rem;">
+          <div class="glass-card" style="padding: 1.25rem;">
+            <div style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">My Files</div>
+            <div id="dash-my-files-count" style="font-size: 2rem; font-weight: 800; color: var(--accent-cyan); margin-top: 0.35rem;">0</div>
+          </div>
+          <div class="glass-card" style="padding: 1.25rem;">
+            <div style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Shared With Others</div>
+            <div id="dash-shared-count" style="font-size: 2rem; font-weight: 800; color: var(--accent-blue); margin-top: 0.35rem;">0</div>
+          </div>
+          <div class="glass-card" style="padding: 1.25rem;">
+            <div style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Received Files</div>
+            <div id="dash-received-count" style="font-size: 2rem; font-weight: 800; color: var(--accent-emerald); margin-top: 0.35rem;">0</div>
+          </div>
+          <div class="glass-card" style="padding: 1.25rem;">
+            <div style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Expiring Soon (&lt;24h)</div>
+            <div id="dash-expiring-count" style="font-size: 2rem; font-weight: 800; color: var(--accent-amber); margin-top: 0.35rem;">0</div>
+          </div>
+        </div>
+
+        <!-- Quick Actions & Recent Files -->
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+          <div class="glass-card">
+            <div class="card-header">
+              <h3 class="card-title">Recent Files</h3>
+              <p class="card-subtitle">Your latest encrypted uploads and incoming files</p>
+            </div>
+            <div id="dashboard-recent-files-list">
+              <p style="color: var(--text-muted); padding: 1rem 0;">No recent files found.</p>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <div class="card-header">
+              <h3 class="card-title">Quick Actions</h3>
+              <p class="card-subtitle">Start a secure transfer</p>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.85rem; margin-top: 0.5rem;">
+              <button onclick="switchTab('upload')" class="btn btn-primary" style="width: 100%;">📤 Upload & Encrypt File</button>
+              <button onclick="switchTab('shared-files')" class="btn btn-secondary" style="width: 100%;">📋 View Shared Links</button>
+              <button onclick="switchTab('received-files')" class="btn btn-secondary" style="width: 100%;">📥 Check Received</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 2: UPLOAD FILE -->
+      <div id="view-upload" class="view-section" style="display: none;">
+        <div class="glass-card">
+          <div class="card-header">
+            <h2 class="card-title">Upload Secure File</h2>
+            <p class="card-subtitle">Files are encrypted before transmission using modern hybrid cryptography</p>
+          </div>
+
+          <!-- Drag and Drop Box -->
+          <div id="upload-dropzone" class="dropzone">
+            <div class="dropzone-icon">📁</div>
+            <h3 style="margin-bottom: 0.5rem; font-size: 1.2rem;">Drag & drop your file here, or click to choose</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">Supports any file format (PDF, DOCX, ZIP, MP4, PNG)</p>
+            <input type="file" id="file-input" style="display: none;">
+          </div>
+
+          <!-- File Preview Box -->
+          <div id="file-preview-card" class="file-preview" style="display: none;">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+              <span id="selected-file-icon" style="font-size: 2.2rem;">📄</span>
+              <div>
+                <strong id="selected-file-name" style="color: var(--accent-cyan); font-size: 1.1rem;">Document.pdf</strong>
+                <div id="selected-file-size" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">1.2 MB</div>
+              </div>
+            </div>
+            <button id="remove-file-btn" class="btn btn-danger" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">Change File</button>
+          </div>
+
+          <!-- Encryption Options Grid -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-top: 1.5rem; margin-bottom: 1.25rem;">
+            <div class="form-group">
+              <label class="form-label">🎯 Recipient</label>
+              <select id="recipient-select" class="form-select">
+                <option value="public">🌐 Public Secure Link (UUID)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">⏳ Link Expiration</label>
+              <select id="expiry-select" class="form-select">
+                <option value="1">1 Hour</option>
+                <option value="24" selected>24 Hours (1 Day)</option>
+                <option value="72">3 Days</option>
+                <option value="168">7 Days</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">🔢 Maximum Downloads</label>
+              <input type="number" id="max-downloads-input" class="form-input" value="5" min="1" max="100">
+            </div>
+          </div>
+
+          <!-- Passphrase protection toggle -->
+          <div style="background: rgba(10,15,29,0.6); padding: 1rem 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
+            <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-size: 0.9rem; font-weight: 600;">
+              <input type="checkbox" id="enable-passphrase-check" style="width: 17px; height: 17px; cursor: pointer;">
+              <span>🛡️ Optional: Protect with Custom Secret Passphrase</span>
+            </label>
+            <div id="custom-passphrase-box" style="display: none; margin-top: 0.75rem;">
+              <input type="password" id="custom-passphrase-input" class="form-input" placeholder="Enter secret passphrase (e.g. MySecretPass#99)">
+              <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 0.35rem;">
+                💡 <em>The recipient will need this passphrase to decrypt. Share it with them separately (e.g. via SMS or phone).</em>
+              </span>
+            </div>
+          </div>
+
+          <button id="start-upload-btn" class="btn btn-primary" style="width: 100%; padding: 1.1rem; font-size: 1.05rem;">
+            🔒 Encrypt & Upload
+          </button>
+
+          <!-- Upload Progress Stepper Flow -->
+          <div id="upload-stepper-panel" style="display: none; margin-top: 2rem;">
+            <h4 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem; text-transform: uppercase;">Cryptographic Progress Flow:</h4>
+            <div class="stepper">
+              <div class="step-item" id="step-1">
+                <span class="step-icon">1️⃣</span>
+                <div class="step-content">
+                  <h4>Reading file bytes</h4>
+                  <p class="step-desc">Pending...</p>
+                </div>
+              </div>
+              <div class="step-item" id="step-2">
+                <span class="step-icon">2️⃣</span>
+                <div class="step-content">
+                  <h4>Generating 256-bit file key & X25519 agreement</h4>
+                  <p class="step-desc">Pending...</p>
+                </div>
+              </div>
+              <div class="step-item" id="step-3">
+                <span class="step-icon">3️⃣</span>
+                <div class="step-content">
+                  <h4>Encrypting (XChaCha20-Poly1305) & Ed25519 signature</h4>
+                  <p class="step-desc">Pending...</p>
+                </div>
+              </div>
+              <div class="step-item" id="step-4">
+                <span class="step-icon">4️⃣</span>
+                <div class="step-content">
+                  <h4>Uploading ciphertext & creating share link</h4>
+                  <p class="step-desc">Pending...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- PAGE 3: MY FILES -->
+      <div id="view-my-files" class="view-section" style="display: none;">
+        <div class="glass-card">
+          <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h2 class="card-title">My Files</h2>
+              <p class="card-subtitle">All encrypted files owned by your account</p>
+            </div>
+            <div>
+              <input type="text" id="my-files-search" class="form-input" placeholder="Search files..." style="max-width: 250px; font-size: 0.85rem; padding: 0.45rem 0.8rem;">
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>File</th>
+                  <th>Size</th>
+                  <th>Status</th>
+                  <th>Uploaded</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="my-files-tbody">
+                <!-- Populated via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 4: SHARED FILES -->
+      <div id="view-shared-files" class="view-section" style="display: none;">
+        <div class="glass-card">
+          <div class="card-header">
+            <h2 class="card-title">Shared Files</h2>
+            <p class="card-subtitle">Manage secure links, view remaining download limits, and expiry dates</p>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>File</th>
+                  <th>Shared With</th>
+                  <th>Expires</th>
+                  <th>Downloads</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="shared-files-tbody">
+                <!-- Populated via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 5: RECEIVED FILES -->
+      <div id="view-received-files" class="view-section" style="display: none;">
+        <div class="glass-card">
+          <div class="card-header">
+            <h2 class="card-title">Received Files</h2>
+            <p class="card-subtitle">Files encrypted specifically with your public key</p>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>File</th>
+                  <th>Size</th>
+                  <th>Sender</th>
+                  <th>Downloads</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="received-files-tbody">
+                <!-- Populated via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 6: SECURITY ACTIVITY LOG -->
+      <div id="view-activity" class="view-section" style="display: none;">
+        <div class="glass-card">
+          <div class="card-header">
+            <h2 class="card-title">Security Activity</h2>
+            <p class="card-subtitle">Personal audit log of your file transfers, authentications, and access attempts</p>
+          </div>
+          <div id="audit-logs-container" class="timeline-list">
+            <p style="color: var(--text-muted);">Loading activity...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 7: SECURITY OVERVIEW -->
+      <div id="view-security" class="view-section" style="display: none;">
+        <div class="glass-card">
+          <div class="card-header">
+            <h2 class="card-title">Your Security</h2>
+            <p class="card-subtitle">Overview of modern cryptographic primitives protecting your data</p>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 2rem;">
+            <div style="background: rgba(10,15,29,0.7); padding: 1.2rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+              <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">File Encryption</div>
+              <div style="font-size: 1.1rem; font-weight: 700; color: var(--accent-cyan); margin-top: 0.25rem;">XChaCha20-Poly1305</div>
+              <div style="font-size: 0.8rem; color: var(--accent-emerald); margin-top: 0.35rem;">✓ Enabled (256-bit AEAD)</div>
+            </div>
+
+            <div style="background: rgba(10,15,29,0.7); padding: 1.2rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+              <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Key Exchange</div>
+              <div style="font-size: 1.1rem; font-weight: 700; color: var(--accent-blue); margin-top: 0.25rem;">X25519 (ECDH)</div>
+              <div style="font-size: 0.8rem; color: var(--accent-emerald); margin-top: 0.35rem;">✓ Enabled (Forward Secrecy)</div>
+            </div>
+
+            <div style="background: rgba(10,15,29,0.7); padding: 1.2rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+              <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Key Derivation</div>
+              <div style="font-size: 1.1rem; font-weight: 700; color: var(--accent-cyan); margin-top: 0.25rem;">HKDF-SHA256</div>
+              <div style="font-size: 0.8rem; color: var(--accent-emerald); margin-top: 0.35rem;">✓ Enabled (RFC 5869)</div>
+            </div>
+
+            <div style="background: rgba(10,15,29,0.7); padding: 1.2rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+              <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Digital Signatures</div>
+              <div style="font-size: 1.1rem; font-weight: 700; color: var(--accent-blue); margin-top: 0.25rem;">Ed25519</div>
+              <div style="font-size: 0.8rem; color: var(--accent-emerald); margin-top: 0.35rem;">✓ Enabled (Non-Repudiation)</div>
+            </div>
+
+            <div style="background: rgba(10,15,29,0.7); padding: 1.2rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+              <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Password Protection</div>
+              <div style="font-size: 1.1rem; font-weight: 700; color: var(--accent-cyan); margin-top: 0.25rem;">PBKDF2 / Bcrypt</div>
+              <div style="font-size: 0.8rem; color: var(--accent-emerald); margin-top: 0.35rem;">✓ Enabled (100k Rounds Vault + Bcrypt)</div>
+            </div>
+
+            <div style="background: rgba(10,15,29,0.7); padding: 1.2rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+              <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Transport Security</div>
+              <div style="font-size: 1.1rem; font-weight: 700; color: var(--accent-blue); margin-top: 0.25rem;">TLS 1.3 / HTTPS</div>
+              <div style="font-size: 0.8rem; color: var(--accent-emerald); margin-top: 0.35rem;">✓ Enabled</div>
+            </div>
+          </div>
+
+          <div style="background: rgba(10,15,29,0.85); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
+            <h3 style="color: var(--accent-cyan); font-size: 1.15rem; margin-bottom: 0.75rem;">Why is my file secure?</h3>
+            <div style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.8;">
+              <p>• <strong>Ciphertext Storage:</strong> Your file is encrypted with a unique 256-bit key before storage. The server stores ciphertext rather than original file data.</p>
+              <p>• <strong>Unique File Keys:</strong> Every file transfer derives an independent symmetric key and an ephemeral keypair.</p>
+              <p>• <strong>Automatic Expiration:</strong> Shared links expire automatically based on your time and download limits.</p>
+              <p>• <strong>Constant-Time Integrity:</strong> Poly1305 AEAD tags immediately reject altered or corrupted files.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 8: SETTINGS -->
+      <div id="view-settings" class="view-section" style="display: none;">
+        <div class="glass-card">
+          <div class="card-header">
+            <h2 class="card-title">Settings</h2>
+            <p class="card-subtitle">Manage your profile, preferences, and security defaults</p>
+          </div>
+
+          <div style="max-width: 600px;">
+            <h3 style="font-size: 1rem; color: var(--text-main); margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Profile</h3>
+            <div class="form-group">
+              <label class="form-label">Full Name</label>
+              <input type="text" id="settings-name" class="form-input" readonly>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <input type="email" id="settings-email" class="form-input" readonly>
+            </div>
+
+            <h3 style="font-size: 1rem; color: var(--text-main); margin-top: 1.5rem; margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Sharing Defaults</h3>
+            <div class="form-group">
+              <label class="form-label">Default Link Expiration</label>
+              <select class="form-select">
+                <option selected>24 Hours</option>
+                <option>3 Days</option>
+                <option>7 Days</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Default Maximum Downloads</label>
+              <input type="number" class="form-input" value="5" min="1" max="100">
+            </div>
+
+            <h3 style="font-size: 1rem; color: var(--accent-rose); margin-top: 1.75rem; margin-bottom: 0.75rem; border-bottom: 1px solid rgba(244,63,94,0.2); padding-bottom: 0.5rem;">Danger Zone</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Permanently remove your account and all associated cryptographic keys.</p>
+            <button onclick="alert('Account deletion requires administrative authorization.')" class="btn btn-danger">Delete Account</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ================= MODALS ================= -->
+  
+  <!-- 1. File Details Modal -->
+  <div id="file-details-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 500px;">
+      <h3 style="color: var(--accent-cyan); display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-size: 1.25rem;">
+        <span>📄</span> File Details
+      </h3>
+      <p id="modal-file-name" style="font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin-bottom: 1rem; word-break: break-all;">report.pdf</p>
+
+      <div style="background: rgba(10,15,29,0.7); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; font-size: 0.85rem; line-height: 1.8; margin-bottom: 1.5rem;">
+        <div>📦 Size: <strong id="modal-file-size" style="color: var(--text-main);">-</strong></div>
+        <div>🔒 Status: <span class="badge badge-success">Encrypted</span></div>
+        <div>🛡️ Encryption: <strong style="color: var(--accent-cyan);">XChaCha20-Poly1305</strong></div>
+        <div>🔑 Key Exchange: <strong style="color: var(--accent-blue);">X25519</strong></div>
+        <div>✍️ Signature: <strong style="color: var(--accent-emerald);">Ed25519 ✓</strong></div>
+        <div>📅 Created: <span id="modal-file-created" style="color: var(--text-muted);">-</span></div>
+        <div>⏳ Expires: <span id="modal-file-expires" style="color: var(--text-muted);">-</span></div>
+        <div>🔢 Downloads: <span id="modal-file-downloads" style="color: var(--accent-amber);">-</span></div>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem;">
+        <button id="modal-copy-link-btn" class="btn btn-primary" style="flex: 1;">Copy Link 📋</button>
+        <button id="modal-delete-btn" class="btn btn-danger">Delete 🗑️</button>
+        <button id="modal-close-btn" class="btn btn-secondary">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Share Result Modal -->
+  <div id="share-result-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <h3 style="color: var(--accent-emerald); display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-size: 1.3rem;">
+        <span>🎉</span> File Encrypted & Ready to Share!
+      </h3>
+      <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+        Copy and send this secure link to your recipient:
+      </p>
+
+      <div class="form-group">
+        <input type="text" id="share-link-input" class="form-input" readonly style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-cyan);">
+      </div>
+
+      <div id="share-meta-pass-notice" style="display: none; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); padding: 0.6rem 0.9rem; border-radius: var(--radius-md); font-size: 0.8rem; color: var(--accent-amber); margin-bottom: 1.25rem;">
+        🔒 This file is protected with your secret passphrase. Share the passphrase with your recipient out-of-band!
+      </div>
+
+      <div style="display: flex; gap: 1.5rem; margin-bottom: 1.75rem; font-size: 0.85rem; color: var(--text-muted); background: rgba(10,15,29,0.6); padding: 0.75rem 1rem; border-radius: var(--radius-md);">
+        <div>⏳ Expires: <strong id="share-meta-expiry" style="color: var(--text-main);">-</strong></div>
+        <div>🔢 Limit: <strong id="share-meta-limits" style="color: var(--text-main);">-</strong></div>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem;">
+        <button id="copy-link-btn" class="btn btn-primary" style="flex: 1;">Copy Link 📋</button>
+        <button id="open-share-link-btn" class="btn btn-secondary">Open Link ↗</button>
+        <button id="close-share-modal-btn" class="btn btn-secondary">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Scripts -->
+  <script src="/js/crypto_engine.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
