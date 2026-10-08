@@ -425,7 +425,7 @@ async function executeE2EEUpload() {
                 finalLink += `#key=${encodeURIComponent(cryptoResult.rawFileKeyB64)}`;
             }
 
-            displayShareResultModal(finalLink, uploadRes.expires_at, uploadRes.max_downloads, isPassEnabled);
+            displayShareResultModal(finalLink, uploadRes.expires_at, uploadRes.max_downloads, isPassEnabled, customPassphrase);
             showToast("File encrypted & uploaded successfully!", "success");
             clearSelectedFile();
             refreshFileCounters();
@@ -677,16 +677,24 @@ async function handleDeleteFile(fileId) {
 }
 
 // ----------------- SHARE RESULT MODAL -----------------
-function displayShareResultModal(url, expiresAt, maxDownloads, isPassphraseProtected = false) {
+function displayShareResultModal(url, expiresAt, maxDownloads, isPassphraseProtected = false, customPassphrase = null) {
     const modal = document.getElementById('share-result-modal');
     document.getElementById('share-link-input').value = url;
     document.getElementById('share-meta-expiry').textContent = expiresAt > 0 ? new Date(expiresAt * 1000).toLocaleString() : 'Never';
     document.getElementById('share-meta-limits').textContent = maxDownloads > 0 ? `${maxDownloads} downloads` : 'Unlimited';
     
     const passNotice = document.getElementById('share-meta-pass-notice');
-    if (passNotice) passNotice.style.display = isPassphraseProtected ? 'block' : 'none';
+    const passInput = document.getElementById('share-passphrase-display');
+    if (passNotice) {
+        if (isPassphraseProtected && customPassphrase) {
+            passNotice.style.display = 'block';
+            if (passInput) passInput.value = customPassphrase;
+        } else {
+            passNotice.style.display = 'none';
+            if (passInput) passInput.value = '';
+        }
+    }
 
-    document.getElementById('open-share-link-btn').onclick = () => window.open(url, '_blank');
     modal.style.display = 'flex';
 }
 
@@ -695,6 +703,28 @@ function copyShareLink() {
     input.select();
     navigator.clipboard.writeText(input.value);
     showToast("Link copied to clipboard!", "success");
+}
+
+function copySecretPassphrase() {
+    const input = document.getElementById('share-passphrase-display');
+    if (input && input.value) {
+        input.select();
+        navigator.clipboard.writeText(input.value);
+        showToast("Secret passphrase copied to clipboard!", "success");
+    }
+}
+
+function generateRandomPassphrase() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let part1 = "", part2 = "";
+    for (let i = 0; i < 4; i++) part1 += chars.charAt(Math.floor(Math.random() * chars.length));
+    for (let i = 0; i < 4; i++) part2 += chars.charAt(Math.floor(Math.random() * chars.length));
+    const generated = `Pass-${part1}-${part2}`;
+    const input = document.getElementById('custom-passphrase-input');
+    if (input) {
+        input.value = generated;
+        showToast("Random secure passphrase generated!", "info");
+    }
 }
 
 function copyDirectLink(uuid) {
@@ -721,6 +751,13 @@ function setupEventListeners() {
     document.getElementById('start-upload-btn').addEventListener('click', executeE2EEUpload);
     document.getElementById('remove-file-btn').addEventListener('click', clearSelectedFile);
     document.getElementById('copy-link-btn').addEventListener('click', copyShareLink);
+    
+    const copyPassBtn = document.getElementById('copy-passphrase-btn');
+    if (copyPassBtn) copyPassBtn.addEventListener('click', copySecretPassphrase);
+    
+    const genPassBtn = document.getElementById('generate-pass-btn');
+    if (genPassBtn) genPassBtn.addEventListener('click', generateRandomPassphrase);
+
     document.getElementById('close-share-modal-btn').addEventListener('click', () => {
         document.getElementById('share-result-modal').style.display = 'none';
     });

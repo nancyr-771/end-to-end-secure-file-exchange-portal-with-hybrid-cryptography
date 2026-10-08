@@ -63,3 +63,23 @@ def token_required(f):
             
         return f(current_user=user, *args, **kwargs)
     return decorated
+
+def get_authenticated_user_optional():
+    """Extracts authenticated user if JWT token is present and valid, otherwise returns None without throwing 401."""
+    token = None
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    if not token:
+        token = request.cookies.get("jwt_token")
+    if not token:
+        token = request.args.get("token")
+        
+    if not token:
+        return None
+        
+    decoded = decode_jwt_token(token)
+    if not decoded or "error" in decoded:
+        return None
+        
+    return db.get_user_by_id(decoded.get("sub"))

@@ -7,7 +7,7 @@ from werkzeug.utils import secure_filename
 
 from backend.config import Config
 from backend.models import db
-from backend.auth import hash_password, verify_password, generate_jwt_token, token_required
+from backend.auth import hash_password, verify_password, generate_jwt_token, token_required, get_authenticated_user_optional
 from backend.crypto_helpers import validate_x25519_public_key, validate_ed25519_public_key
 
 app = Flask(__name__, static_folder=os.path.join(Config.BASE_DIR, 'frontend'), static_url_path='')
@@ -334,6 +334,20 @@ def get_file_info(share_uuid):
     if not file_doc:
         return jsonify({"success": False, "message": "This secure download link was not found or has been deleted."}), 404
         
+    auth_user = get_authenticated_user_optional()
+    is_sender = bool(auth_user and auth_user.get("user_id") == file_doc.get("sender_id"))
+    is_recipient = bool(auth_user and auth_user.get("user_id") == file_doc.get("recipient_id"))
+    
+    # Recipient targeted authorization check
+    recipient_id = file_doc.get("recipient_id", "public")
+    if recipient_id != "public" and not file_doc.get("is_passphrase_protected", False):
+        if not is_sender and not is_recipient:
+            return jsonify({
+                "success": False,
+                "unauthorized": True,
+                "message": "Access restricted. This encrypted file is private and addressed to a specific recipient."
+            }), 403
+
     now = time.time()
     # Check expiry
     if file_doc.get("expires_at", 0) > 0 and now > file_doc["expires_at"]:
@@ -344,8 +358,8 @@ def get_file_info(share_uuid):
             "message": "This secure link has expired. The file is no longer available."
         }), 410
         
-    # Check download limits
-    if file_doc.get("max_downloads", 0) > 0 and file_doc.get("download_count", 0) >= file_doc["max_downloads"]:
+    # Check download limits (allow sender to inspect metadata even if limit reached)
+    if not is_sender and file_doc.get("max_downloads", 0) > 0 and file_doc.get("download_count", 0) >= file_doc["max_downloads"]:
         return jsonify({
             "success": False,
             "limit_reached": True,
@@ -354,6 +368,7 @@ def get_file_info(share_uuid):
 
     return jsonify({
         "success": True,
+        "is_sender": is_sender,
         "file": {
             "filename": file_doc["filename"],
             "file_size": file_doc["file_size"],
@@ -380,12 +395,23 @@ def download_file(share_uuid):
     if not file_doc:
         return jsonify({"success": False, "message": "File not found."}), 404
         
+    auth_user = get_authenticated_user_optional()
+    is_sender = bool(auth_user and auth_user.get("user_id") == file_doc.get("sender_id"))
+    is_recipient = bool(auth_user and auth_user.get("user_id") == file_doc.get("recipient_id"))
+    
+    # Recipient targeted authorization check
+    recipient_id = file_doc.get("recipient_id", "public")
+    if recipient_id != "public" and not file_doc.get("is_passphrase_protected", False):
+        if not is_sender and not is_recipient:
+            return jsonify({
+                "success": False,
+                "unauthorized": True,
+                "message": "Access denied. You are not authorized to download this file."
+            }), 403
+            
     now = time.time()
     if file_doc.get("expires_at", 0) > 0 and now > file_doc["expires_at"]:
         return jsonify({"success": False, "message": "This secure link has expired."}), 410
-        
-    if file_doc.get("max_downloads", 0) > 0 and file_doc.get("download_count", 0) >= file_doc["max_downloads"]:
-        return jsonify({"success": False, "message": "Download limit reached."}), 410
         
     blob_filename = file_doc["encrypted_blob_path"]
     full_path = os.path.join(Config.UPLOAD_FOLDER, blob_filename)
@@ -393,9 +419,21 @@ def download_file(share_uuid):
     if not os.path.exists(full_path):
         return jsonify({"success": False, "message": "Encrypted file data not found on server."}), 404
         
+    # Sender preview/download does NOT consume recipient's download limits
+    if is_sender:
+        return send_file(
+            full_path,
+            mimetype="application/octet-stream",
+            as_attachment=True,
+            download_name=f"{file_doc['filename']}.enc"
+        )
+        
+    # Atomic download increment for authorized receivers
+    success = db.increment_download_count(file_doc["file_id"])
+    if not success:
+        return jsonify({"success": False, "message": "Download limit reached. No further downloads permitted."}), 410
+        
     new_count = file_doc.get("download_count", 0) + 1
-    db.increment_download_count(file_doc["file_id"])
-    
     db.log_audit("FILE_DOWNLOADED", {
         "file_id": file_doc["file_id"],
         "share_uuid": share_uuid,

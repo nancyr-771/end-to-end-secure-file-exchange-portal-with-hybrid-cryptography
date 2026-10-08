@@ -162,15 +162,41 @@ class Database:
             return None
 
     def increment_download_count(self, file_id):
+        """Atomically increments download_count only if limit not exceeded."""
         if self.is_mongo:
-            self.db.files.update_one({"file_id": file_id}, {"$inc": {"download_count": 1}})
+            # Check file first
+            file_doc = self.db.files.find_one({"file_id": file_id})
+            if not file_doc:
+                return False
+            max_d = file_doc.get("max_downloads", 0)
+            curr_d = file_doc.get("download_count", 0)
+            if max_d > 0 and curr_d >= max_d:
+                return False
+                
+            res = self.db.files.update_one(
+                {
+                    "file_id": file_id,
+                    "$or": [
+                        {"max_downloads": {"$lte": 0}},
+                        {"download_count": {"$lt": max_d}}
+                    ]
+                },
+                {"$inc": {"download_count": 1}}
+            )
+            return res.modified_count > 0
         else:
-            files = self._read_local("files")
-            for f in files:
-                if f.get("file_id") == file_id:
-                    f["download_count"] = f.get("download_count", 0) + 1
-                    break
-            self._write_local("files", files)
+            with self._lock:
+                files = self._read_local("files")
+                for f in files:
+                    if f.get("file_id") == file_id:
+                        max_d = f.get("max_downloads", 0)
+                        curr_d = f.get("download_count", 0)
+                        if max_d > 0 and curr_d >= max_d:
+                            return False
+                        f["download_count"] = curr_d + 1
+                        self._write_local("files", files)
+                        return True
+                return False
 
     def get_files_for_user(self, user_id):
         if self.is_mongo:

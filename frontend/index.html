@@ -228,9 +228,12 @@
               <span>🛡️ Optional: Protect with Custom Secret Passphrase</span>
             </label>
             <div id="custom-passphrase-box" style="display: none; margin-top: 0.75rem;">
-              <input type="password" id="custom-passphrase-input" class="form-input" placeholder="Enter secret passphrase (e.g. MySecretPass#99)">
+              <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <input type="text" id="custom-passphrase-input" class="form-input" placeholder="Enter secret passphrase (e.g. SecretPIN#99)" style="flex: 1;">
+                <button type="button" id="generate-pass-btn" class="btn btn-secondary" style="padding: 0.5rem 0.8rem; font-size: 0.8rem; white-space: nowrap;">🎲 Random</button>
+              </div>
               <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 0.35rem;">
-                💡 <em>The recipient will need this passphrase to decrypt. Share it with them separately (e.g. via SMS or phone).</em>
+                💡 <em>The recipient will need this exact passphrase to decrypt. You will be able to copy both the link and this passphrase after upload.</em>
               </span>
             </div>
           </div>
@@ -520,8 +523,17 @@
         <input type="text" id="share-link-input" class="form-input" readonly style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-cyan);">
       </div>
 
-      <div id="share-meta-pass-notice" style="display: none; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); padding: 0.6rem 0.9rem; border-radius: var(--radius-md); font-size: 0.8rem; color: var(--accent-amber); margin-bottom: 1.25rem;">
-        🔒 This file is protected with your secret passphrase. Share the passphrase with your recipient out-of-band!
+      <div id="share-meta-pass-notice" style="display: none; background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.4); padding: 0.85rem 1rem; border-radius: var(--radius-md); font-size: 0.85rem; margin-bottom: 1.25rem;">
+        <div style="font-weight: 700; color: var(--accent-amber); margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.4rem;">
+          <span>🔑</span> Secret Passphrase Required to Decrypt:
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.4rem;">
+          <input type="text" id="share-passphrase-display" class="form-input" readonly style="font-family: var(--font-mono); font-size: 0.9rem; font-weight: 700; color: #fff; background: rgba(0,0,0,0.4); flex: 1;">
+          <button type="button" id="copy-passphrase-btn" class="btn btn-secondary" style="padding: 0.45rem 0.85rem; font-size: 0.8rem; white-space: nowrap;">Copy Passphrase 🔑</button>
+        </div>
+        <p style="font-size: 0.76rem; color: var(--text-muted); margin-top: 0.45rem; line-height: 1.4;">
+          ⚠️ <em>Save this secret and share it securely with your intended receiver (e.g. via SMS or WhatsApp). It cannot be recovered later.</em>
+        </p>
       </div>
 
       <div style="display: flex; gap: 1.5rem; margin-bottom: 1.75rem; font-size: 0.85rem; color: var(--text-muted); background: rgba(10,15,29,0.6); padding: 0.75rem 1rem; border-radius: var(--radius-md);">
@@ -531,7 +543,6 @@
 
       <div style="display: flex; gap: 0.75rem;">
         <button id="copy-link-btn" class="btn btn-primary" style="flex: 1;">Copy Link 📋</button>
-        <button id="open-share-link-btn" class="btn btn-secondary">Open Link ↗</button>
         <button id="close-share-modal-btn" class="btn btn-secondary">Done</button>
       </div>
     </div>
