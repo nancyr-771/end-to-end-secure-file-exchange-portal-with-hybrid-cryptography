@@ -172,8 +172,22 @@ class CryptoEngine {
         return this.arrayBufferToBase64(combined.buffer);
     }
 
-    async unwrapWithCustomPassphrase(passphraseWrappedKeyB64, passphrase) {
-        const combined = new Uint8Array(this.base64ToArrayBuffer(passphraseWrappedKeyB64));
+    async unwrapWithCustomPassphrase(passphraseWrappedKey, passphrase) {
+        let combined;
+        if (typeof passphraseWrappedKey === "string") {
+            combined = new Uint8Array(this.base64ToArrayBuffer(passphraseWrappedKey));
+        } else if (passphraseWrappedKey instanceof ArrayBuffer) {
+            combined = new Uint8Array(passphraseWrappedKey);
+        } else if (passphraseWrappedKey && passphraseWrappedKey.buffer) {
+            combined = new Uint8Array(passphraseWrappedKey.buffer);
+        } else {
+            combined = new Uint8Array(passphraseWrappedKey);
+        }
+
+        if (combined.byteLength < 44) {
+            throw new Error("Corrupted passphrase envelope or invalid secret.");
+        }
+
         const salt = combined.slice(0, 16);
         const iv = combined.slice(16, 28);
         const encData = combined.slice(28);
@@ -213,9 +227,16 @@ class CryptoEngine {
         combinedBlob.set(fileIv, 0);
         combinedBlob.set(new Uint8Array(encryptedFileBuf), fileIv.byteLength);
 
-        // 3. Ephemeral Key Exchange (Forward Secrecy)
+        // 3. Ephemeral Key Exchange & Passphrase Wrapping
         let wrappedFileKeyB64 = "";
         let ephemPubB64 = "";
+
+        // If optionalPassphrase is provided, wrap the raw file key with the passphrase first
+        let keyToEncapsulate = rawFileKey;
+        if (optionalPassphrase) {
+            const passWrappedB64 = await this.wrapWithCustomPassphrase(rawFileKey, optionalPassphrase);
+            keyToEncapsulate = this.base64ToArrayBuffer(passWrappedB64);
+        }
 
         if (recipientEcdhPubB64 && recipientEcdhPubB64 !== "public") {
             const ephemPair = await this.subtle.generateKey(
@@ -258,7 +279,7 @@ class CryptoEngine {
             const encKeyData = await this.subtle.encrypt(
                 { name: "AES-GCM", iv: wrapIv },
                 wrapKey,
-                rawFileKey
+                keyToEncapsulate
             );
 
             const wrappedBuf = new Uint8Array(wrapIv.byteLength + encKeyData.byteLength);
@@ -267,9 +288,9 @@ class CryptoEngine {
 
             wrappedFileKeyB64 = this.arrayBufferToBase64(wrappedBuf.buffer);
         } else {
-            // Guest Link: Wrap with passphrase if provided, else store in URL fragment
+            // Guest / Public Link:
             if (optionalPassphrase) {
-                wrappedFileKeyB64 = await this.wrapWithCustomPassphrase(rawFileKey, optionalPassphrase);
+                wrappedFileKeyB64 = this.arrayBufferToBase64(keyToEncapsulate);
             } else {
                 wrappedFileKeyB64 = this.arrayBufferToBase64(rawFileKey);
             }
@@ -345,9 +366,8 @@ class CryptoEngine {
 
         // 2. Unwrap 256-bit File Key
         let rawFileKeyBytes;
-        if (optionalPassphrase) {
-            rawFileKeyBytes = await this.unwrapWithCustomPassphrase(wrappedFileKeyB64, optionalPassphrase);
-        } else if (ephemeralPubKeyB64 && recipientEcdhPrivB64) {
+
+        if (ephemeralPubKeyB64 && recipientEcdhPrivB64) {
             const recipientPriv = await this.subtle.importKey(
                 "pkcs8",
                 this.base64ToArrayBuffer(recipientEcdhPrivB64),
@@ -388,12 +408,25 @@ class CryptoEngine {
             const wrapIv = wrappedBuf.slice(0, 12);
             const encKeyData = wrappedBuf.slice(12);
 
-            const decryptedKeyBuf = await this.subtle.decrypt(
-                { name: "AES-GCM", iv: wrapIv },
-                wrapKey,
-                encKeyData
-            );
-            rawFileKeyBytes = new Uint8Array(decryptedKeyBuf);
+            let innerDecryptedBuf;
+            try {
+                innerDecryptedBuf = await this.subtle.decrypt(
+                    { name: "AES-GCM", iv: wrapIv },
+                    wrapKey,
+                    encKeyData
+                );
+            } catch (e) {
+                throw new Error("Could not unlock private key envelope. Please verify your receiver master password.");
+            }
+
+            // If passphrase was also used, unwrap the inner passphrase layer
+            if (optionalPassphrase) {
+                rawFileKeyBytes = await this.unwrapWithCustomPassphrase(innerDecryptedBuf, optionalPassphrase);
+            } else {
+                rawFileKeyBytes = new Uint8Array(innerDecryptedBuf);
+            }
+        } else if (optionalPassphrase) {
+            rawFileKeyBytes = await this.unwrapWithCustomPassphrase(wrappedFileKeyB64, optionalPassphrase);
         } else {
             rawFileKeyBytes = new Uint8Array(this.base64ToArrayBuffer(wrappedFileKeyB64));
         }

@@ -223,7 +223,7 @@
       }
 
       const sessionKeys = sessionStorage.getItem('portal_session_keys');
-      if (!urlFragmentKey && fileMetadata.recipient_id !== 'public' && !sessionKeys) {
+      if (fileMetadata.recipient_id !== 'public' && !sessionKeys) {
         document.getElementById('password-unlock-section').style.display = 'block';
       }
 
@@ -252,12 +252,12 @@
         }
 
         let recipientPrivKey = null;
-        if (!urlFragmentKey && !customPassphrase && fileMetadata.recipient_id !== 'public') {
+        if (fileMetadata.recipient_id !== 'public') {
           const sessionKeys = sessionStorage.getItem('portal_session_keys');
           if (sessionKeys) {
             recipientPrivKey = JSON.parse(sessionKeys).ecdh_priv;
           } else {
-            const password = document.getElementById('receiver-password').value;
+            const password = document.getElementById('receiver-password')?.value;
             if (!password) throw new Error("Please enter your master password to unlock your private key.");
             
             const meRes = await window.api.getMe();
