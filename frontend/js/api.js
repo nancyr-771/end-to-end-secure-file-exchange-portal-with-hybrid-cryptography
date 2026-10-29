@@ -2,7 +2,11 @@
  * API Client Layer for communicating with Flask Backend
  */
 
-const API_BASE = '';
+   const API_BASE = (
+       location.hostname === 'localhost' ||
+       location.hostname === '127.0.0.1' ||
+       location.hostname.endsWith('onrender.com')
+   ) ? '' : 'https://secure-file-exchange-backend.onrender.com';
 
 class ApiClient {
     constructor() {
