@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: secure-file-exchange-backend
+    runtime: python
+    plan: free
+    region: singapore          # closest to Chennai; change if you like
+    branch: main
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: gunicorn backend.app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120
+    healthCheckPath: /api/status
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: SECRET_KEY          # auto-generated random JWT secret
+        generateValue: true
+      - key: JWT_EXPIRATION_HOURS
+        value: "24"
+      - key: MONGO_URI           # paste your MongoDB Atlas URI in the Render dashboard
+        sync: false
+      - key: DB_NAME
+        value: fileexchange
+      - key: MAX_CONTENT_LENGTH  # 25 MB (free tier has only 512 MB RAM)
+        value: "26214400"
